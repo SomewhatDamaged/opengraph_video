@@ -30,9 +30,15 @@ OPENGRAPH = """<!DOCTYPE html>
 </html>
 """
 
+def add_content_type(input: str, content_type: str) -> str:
+    return input.replace("</head>", f"<meta property=\"og:video:type\" content=\"video/{content_type}\">\n</head>", 1)
+
+def format_HTML(input: str, url: str) -> str:
+    return input.format(url=url, domain=DOMAIN, path=PATH)
+
 async def do_video(request: web.Request):
     url = request.query_string[4:].replace("\"", "&quot;")
-    return web.Response(content_type="text/html", body=OPENGRAPH.format(url=url, domain=DOMAIN, path=PATH))
+    return web.Response(content_type="text/html", body=format_HTML(OPENGRAPH, url))
 
 async def do_oembed(request: web.Request):
     url = request.query_string[4:].replace("\"", "&quot;")
@@ -51,15 +57,18 @@ async def do_oembed(request: web.Request):
 async def do_video_forceformat(request: web.Request):
     url = request.query_string[4:].replace("\"", "&quot;")
     format = request.match_info['format'].replace("\"", "&quot;")
-    html = OPENGRAPH.replace("<title></title>", "<title></title>\n<meta property=\"og:video:type\" content=\"video/{format}\">", 1)
-    return web.Response(content_type="text/html", body=html.format(url=url, format=format, domain=DOMAIN, path=PATH))
+    html = add_content_type(OPENGRAPH, format)
+    return web.Response(content_type="text/html", body=format_HTML(html, url))
 
-try:
-    app = web.Application()
-    app.add_routes([web.get(f'{PATH}/{{format}}',do_video_forceformat)])
-    app.add_routes([web.get(f'{PATH}/oembed.json',do_oembed)])
-    app.add_routes([web.get(f'{PATH}',do_video)])
-    web.run_app(app, host="127.0.0.1", port=PORT)
-except Exception as e:
-    print(e)
+def main():
+    try:
+        app = web.Application()
+        app.add_routes([web.get(f'{PATH}/{{format}}',do_video_forceformat)])
+        app.add_routes([web.get(f'{PATH}/oembed.json',do_oembed)])
+        app.add_routes([web.get(f'{PATH}',do_video)])
+        web.run_app(app, host="127.0.0.1", port=PORT)
+    except Exception as e:
+        print(e)
     
+if __name__ == '__main__':
+    main()
